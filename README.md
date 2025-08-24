@@ -87,3 +87,13 @@ the right side shows the differences between the branches.
 So all you need to do is edit the left side to resolve the conflicts.
 
 To abort the merge, simply `:cquit`.
+
+### Lua API
+
+You can also use the Lua API to open the diff conflicts view:
+
+```lua
+require("diffconflicts").show()
+require("diffconflicts").show_history()
+require("diffconflicts").show_with_history()
+```
