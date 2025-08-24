@@ -82,4 +82,8 @@ This will open the current file in diff mode with the conflicts highlighted.
 The left side shows the resolution,
 the right side shows the differences between the branches.
 
+![diffconflicts screenshot](assets/screenshot.png)
+
 So all you need to do is edit the left side to resolve the conflicts.
+
+To abort the merge, simply `:cquit`.
