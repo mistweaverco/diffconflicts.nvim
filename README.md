@@ -26,6 +26,7 @@ Make resolving merge conflicts in Neovim a breeze.
 
 - Neovim 0.10+
 - Git 2.25+ (for `git mergetool` support)
+- Jujutsu v0.18+ (optional, for `jj resolve` support)
 
 ## Installation
 
@@ -62,12 +63,30 @@ git config --global mergetool.diffconflicts.trustExitCode true
 git config --global mergetool.keepBackup false
 ```
 
+Configure Jujutsu to use this plugin as a merge tool (requires the default `"diff"` conflict marker style):
+
+```toml
+[merge-tools.diffconflicts]
+program = "nvim"
+merge-args = [
+  "-c", "let g:jj_diffconflicts_marker_length=$marker_length",
+  "-c", "DiffConflictsWithHistory", "$output", "$base", "$left", "$right",
+]
+merge-tool-edits-conflict-markers = true
+```
+
 ## Usage
 
 To resolve merge conflicts, run:
 
 ```sh
 git mergetool
+```
+
+Or for Jujutsu:
+
+```sh
+jj resolve --tool diffconflicts
 ```
 
 This will open the conflicting file in Neovim with the `diffconflicts.nvim` plugin enabled.
