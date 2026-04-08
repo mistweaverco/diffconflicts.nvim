@@ -50,6 +50,15 @@ For example, with [Lazy](https://github.com/folke/lazy.nvim):
       -- set to nil to disable the command
       with_history = "DiffConflictsWithHistory",
     },
+    -- Quality-of-life options
+    qol = {
+      -- After saving (:w), automatically close the diff view and jump to the next
+      -- conflict in the file (if any).
+      advance_on_save = true,
+      -- If no conflicts remain after saving, quit Neovim (:qa). This is useful
+      -- when running from `git mergetool` / `jj resolve`.
+      quit_on_done = true,
+    },
   }
 }
 ```
@@ -63,7 +72,8 @@ git config --global mergetool.diffconflicts.trustExitCode true
 git config --global mergetool.keepBackup false
 ```
 
-Configure Jujutsu to use this plugin as a merge tool (requires the default `"diff"` conflict marker style):
+Configure Jujutsu to use this plugin as a merge tool
+(requires the default `"diff"` conflict marker style):
 
 ```toml
 [merge-tools.diffconflicts]
@@ -104,6 +114,8 @@ the right side shows the differences between the branches.
 ![diffconflicts screenshot](assets/screenshot.png)
 
 So all you need to do is edit the left side to resolve the conflicts.
+
+By default, saving the file (`:w`) will automatically advance to the next conflict in the file, and if there are no conflicts left it will quit Neovim (so your merge tool can continue). You can customize this behavior via `qol.advance_on_save` and `qol.quit_on_done`.
 
 To abort the merge, simply `:cquit`.
 
