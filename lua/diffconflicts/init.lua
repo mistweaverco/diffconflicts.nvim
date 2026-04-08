@@ -7,7 +7,13 @@ local config = {
     show_history = "DiffConflictsShowHistory",
     with_history = "DiffConflictsWithHistory",
   },
+  qol = {
+    advance_on_save = true,
+    quit_on_done = true,
+  },
 }
+
+local advance_augroup = vim.api.nvim_create_augroup("diffconflicts.nvim.advance", { clear = false })
 
 local function is_jj_repo()
   local buf_path = vim.api.nvim_buf_get_name(0)
@@ -204,8 +210,13 @@ local function jj_setup_diff_splits(conflicts)
   local conflicted_content = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local original_filetype = vim.bo.filetype
 
+  local left_buf = vim.api.nvim_get_current_buf()
+  local left_win = vim.api.nvim_get_current_win()
+
   vim.cmd.vsplit({ mods = { split = "belowright" } })
   vim.cmd.enew()
+  local right_win = vim.api.nvim_get_current_win()
+  local right_buf = vim.api.nvim_get_current_buf()
   local right_side = jj_get_content_for_side("right_side", conflicts, vim.deepcopy(conflicted_content))
   vim.api.nvim_buf_set_lines(0, 0, -1, false, right_side)
   vim.cmd.file("snapshot")
@@ -214,12 +225,48 @@ local function jj_setup_diff_splits(conflicts)
   vim.cmd.diffthis()
 
   vim.cmd.wincmd("p")
+  -- Ensure we are back on the original buffer/window.
+  if vim.api.nvim_get_current_buf() ~= left_buf and vim.api.nvim_win_is_valid(left_win) then
+    vim.api.nvim_set_current_win(left_win)
+  end
   local left_side = jj_get_content_for_side("left_side", conflicts, vim.deepcopy(conflicted_content))
   vim.api.nvim_buf_set_lines(0, 0, -1, false, left_side)
   vim.cmd.diffthis()
 
   vim.cmd.diffupdate()
   vim.fn.cursor(conflicts[1].top_line, 1)
+
+  -- QoL: save-to-advance (and optionally quit when done).
+  if config.qol and config.qol.advance_on_save then
+    vim.api.nvim_clear_autocmds({ group = advance_augroup, buffer = left_buf })
+    vim.api.nvim_create_autocmd("BufWritePost", {
+      group = advance_augroup,
+      buffer = left_buf,
+      callback = function()
+        -- Close the snapshot window/buffer if still around.
+        if vim.api.nvim_win_is_valid(right_win) then
+          pcall(vim.api.nvim_win_close, right_win, true)
+        end
+        if vim.api.nvim_buf_is_valid(right_buf) then
+          pcall(vim.api.nvim_buf_delete, right_buf, { force = true })
+        end
+
+        -- If there are more conflicts, reopen diff view; otherwise optionally quit.
+        local lines = vim.api.nvim_buf_get_lines(left_buf, 0, -1, false)
+        if buffer_looks_like_jj_conflict(lines) then
+          -- Re-run using inferred marker length so we always match the buffer.
+          jj_run(false, detect_jj_marker_length_from_buffer(lines), nil)
+          return
+        end
+
+        if config.qol and config.qol.quit_on_done then
+          -- If we were launched as a mergetool, leaving Neovim is the smoothest way
+          -- to hand control back to the VCS tooling.
+          pcall(vim.cmd, "qa")
+        end
+      end,
+    })
+  end
 end
 
 local function jj_setup_history_view(base_path, left_path, right_path)
@@ -324,14 +371,65 @@ local function has_conflicts()
   return conflict_count > 0
 end
 
+local function detect_jj_marker_length_from_buffer(lines)
+  -- jj conflict markers look like:
+  --   <<<<<<< <description>
+  --   %%%%%%% <description>
+  --   +++++++ <description>
+  --   >>>>>>> <description>
+  --
+  -- The marker length is configurable; infer it from the first "<<<<<<<" line.
+  for _, line in ipairs(lines) do
+    local run = line:match("^(<+)%s.+$")
+    if run then
+      return #run
+    end
+  end
+  return nil
+end
+
+local function buffer_looks_like_jj_conflict(lines)
+  local has_top = false
+  local has_diff = false
+  local has_snapshot = false
+  local has_bottom = false
+
+  for _, line in ipairs(lines) do
+    if not has_top and line:match("^<+%s.+$") then
+      has_top = true
+    elseif not has_diff and line:match("^%%+%%+%s.+$") then
+      -- "%%%%%%%" in Lua patterns needs escaping; this matches 2+ '%' chars then space.
+      has_diff = true
+    elseif not has_snapshot and line:match("^%+%+%s.+$") then
+      -- "+++++++" (2+ '+' chars then space)
+      has_snapshot = true
+    elseif not has_bottom and line:match("^>+%s.+$") then
+      has_bottom = true
+    end
+  end
+
+  return has_top and has_bottom and (has_diff or has_snapshot)
+end
+
 local function diff_confl()
   if effective_vcs() == "jj" then
     jj_run(false, nil, nil)
     return
   end
 
+  -- If we were invoked on a jj-style conflict buffer outside of a jj repo
+  -- (e.g. `jj resolve` temp paths), fall back to jj parsing anyway.
+  do
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    if buffer_looks_like_jj_conflict(lines) then
+      jj_run(false, detect_jj_marker_length_from_buffer(lines), nil)
+      return
+    end
+  end
+
   local orig_buf = vim.api.nvim_get_current_buf()
   local orig_ft = vim.bo.filetype
+  local left_win = vim.api.nvim_get_current_win()
 
   local conflict_style
   if config.vcs == "git" then
@@ -344,14 +442,16 @@ local function diff_confl()
   -- Set up the right-hand side.
   vim.cmd("rightb vsplit")
   vim.cmd("enew")
+  local right_win = vim.api.nvim_get_current_win()
+  local right_buf = vim.api.nvim_get_current_buf()
   vim.cmd('silent execute "read #" .. ' .. orig_buf)
   vim.api.nvim_buf_set_lines(0, 0, 1, false, {}) -- Delete the first line
   vim.cmd("silent file RCONFL")
   vim.bo.filetype = orig_ft
   vim.cmd("diffthis")
 
-  vim.cmd("silent g/^<<<<<<< /,/^=======\\r\\?$/d")
-  vim.cmd("silent g/^>>>>>>> /d")
+  vim.cmd("silent! g/^<<<<<<< /,/^=======\\r\\?$/d")
+  vim.cmd("silent! g/^>>>>>>> /d")
 
   vim.bo.modifiable = false
   vim.bo.readonly = true
@@ -364,13 +464,42 @@ local function diff_confl()
   vim.cmd("diffthis")
 
   if conflict_style:lower() == "diff3" or conflict_style:lower() == "zdiff3" then
-    vim.cmd("silent g/^||||||| \\?/,/^>>>>>>> /d")
+    vim.cmd("silent! g/^||||||| \\?/,/^>>>>>>> /d")
   else
-    vim.cmd("silent g/^=======\\r\\?$/,/^>>>>>>> /d")
+    vim.cmd("silent! g/^=======\\r\\?$/,/^>>>>>>> /d")
   end
-  vim.cmd("silent g/^<<<<<<< /d")
+  vim.cmd("silent! g/^<<<<<<< /d")
 
   vim.cmd("diffupdate")
+
+  -- QoL: save-to-advance (and optionally quit when done).
+  if config.qol and config.qol.advance_on_save then
+    vim.api.nvim_clear_autocmds({ group = advance_augroup, buffer = orig_buf })
+    vim.api.nvim_create_autocmd("BufWritePost", {
+      group = advance_augroup,
+      buffer = orig_buf,
+      callback = function()
+        if vim.api.nvim_win_is_valid(right_win) then
+          pcall(vim.api.nvim_win_close, right_win, true)
+        end
+        if vim.api.nvim_buf_is_valid(right_buf) then
+          pcall(vim.api.nvim_buf_delete, right_buf, { force = true })
+        end
+        if vim.api.nvim_win_is_valid(left_win) then
+          pcall(vim.api.nvim_set_current_win, left_win)
+        end
+
+        if has_conflicts() then
+          diff_confl()
+          return
+        end
+
+        if config.qol and config.qol.quit_on_done then
+          pcall(vim.cmd, "qa")
+        end
+      end,
+    })
+  end
 end
 
 local function show_history()
