@@ -15,6 +15,78 @@ local config = {
 
 local advance_augroup = vim.api.nvim_create_augroup("diffconflicts.nvim.advance", { clear = false })
 
+-- Forward declarations: these are referenced from callbacks defined earlier in the file.
+local detect_jj_marker_length_from_buffer
+local buffer_looks_like_jj_conflict
+
+local function close_win_if_valid(winid)
+  if winid and vim.api.nvim_win_is_valid(winid) then
+    pcall(vim.api.nvim_win_close, winid, true)
+  end
+end
+
+local function delete_buf_if_valid(bufnr)
+  if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+    pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+  end
+end
+
+local function is_plugin_aux_buffer(bufnr)
+  local name = vim.api.nvim_buf_get_name(bufnr) or ""
+  local tail = vim.fn.fnamemodify(name, ":t")
+
+  if tail == "RCONFL" or tail == "snapshot" or tail == "left" or tail == "base" or tail == "right" then
+    return true
+  end
+
+  -- git/hg history view buffers
+  if tail == "BASE" or tail == "LOCAL" or tail == "REMOTE" then
+    return true
+  end
+  if tail:find("^~base%.$") or tail:find("^~local%.$") or tail:find("^~other%.$") then
+    return true
+  end
+
+  return false
+end
+
+local function cleanup_plugin_aux_buffers(keep_buf)
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if b ~= keep_buf and vim.api.nvim_buf_is_valid(b) and is_plugin_aux_buffer(b) then
+      delete_buf_if_valid(b)
+    end
+  end
+end
+
+local function systemlist_trim(cmd)
+  local out = vim.fn.systemlist(cmd)
+  if vim.v.shell_error ~= 0 then
+    return {}
+  end
+  return vim.tbl_filter(function(s)
+    return s and s ~= ""
+  end, out)
+end
+
+local function repo_root_from_path(marker, path)
+  if not path or path == "" then
+    return nil
+  end
+  local start = vim.fn.fnamemodify(path, ":p:h")
+  local found = vim.fs.find(marker, { upward = true, path = start })
+  if not found or #found == 0 then
+    return nil
+  end
+  return vim.fn.fnamemodify(found[1], ":p:h")
+end
+
+local function repo_root_for_vcs_and_path(vcs, current_abs_path)
+  if vcs == "jj" then
+    return repo_root_from_path(".jj", current_abs_path)
+  end
+  return repo_root_from_path(".git", current_abs_path)
+end
+
 local function is_jj_repo()
   local buf_path = vim.api.nvim_buf_get_name(0)
   local start = buf_path ~= "" and vim.fn.fnamemodify(buf_path, ":p:h") or vim.uv.cwd()
@@ -27,6 +99,70 @@ local function effective_vcs()
     return "jj"
   end
   return config.vcs
+end
+
+local function conflicted_files_for_vcs(vcs)
+  local current = vim.api.nvim_buf_get_name(0)
+  local root = repo_root_for_vcs_and_path(vcs, current) or vim.uv.cwd()
+  local root_esc = vim.fn.shellescape(root)
+
+  if vcs == "jj" then
+    -- jj prints relative paths
+    return systemlist_trim("jj -R " .. root_esc .. " resolve --list")
+  end
+  -- git/hg: for now, git-style "U" filter is used (hg mergetool use-case is separate)
+  return systemlist_trim("git -C " .. root_esc .. " diff --name-only --diff-filter=U")
+end
+
+local function advance_to_next_conflicted_file_for_vcs(vcs, current_abs_path)
+  local files = conflicted_files_for_vcs(vcs)
+  if vim.tbl_isempty(files) then
+    return false
+  end
+
+  local root = repo_root_for_vcs_and_path(vcs, current_abs_path)
+  if not root then
+    return false
+  end
+
+  local current_rel = nil
+  if current_abs_path and current_abs_path ~= "" then
+    local p = vim.fn.fnamemodify(current_abs_path, ":p")
+    local r = vim.fn.fnamemodify(root, ":p")
+    if p:sub(1, #r + 1) == r .. "/" then
+      current_rel = p:sub(#r + 2)
+    end
+  end
+
+  local next_rel = nil
+  if current_rel then
+    for i, f in ipairs(files) do
+      if f == current_rel then
+        next_rel = files[i + 1]
+        break
+      end
+    end
+  end
+  next_rel = next_rel or files[1]
+
+  local next_abs = vim.fn.fnamemodify(root .. "/" .. next_rel, ":p")
+  if current_abs_path and vim.fn.fnamemodify(current_abs_path, ":p") == next_abs then
+    return false
+  end
+
+  vim.cmd.edit(vim.fn.fnameescape(next_abs))
+
+  -- Re-open the diff view for the new buffer.
+  -- Use the configured command so we don't depend on local function order.
+  vim.schedule(function()
+    if config.commands and config.commands.diff_conflicts then
+      pcall(vim.cmd, config.commands.diff_conflicts)
+    else
+      pcall(vim.cmd, "DiffConflicts")
+    end
+  end)
+
+  return true
 end
 
 local function jj_get_marker_length(explicit)
@@ -243,19 +379,21 @@ local function jj_setup_diff_splits(conflicts)
       group = advance_augroup,
       buffer = left_buf,
       callback = function()
-        -- Close the snapshot window/buffer if still around.
-        if vim.api.nvim_win_is_valid(right_win) then
-          pcall(vim.api.nvim_win_close, right_win, true)
-        end
-        if vim.api.nvim_buf_is_valid(right_buf) then
-          pcall(vim.api.nvim_buf_delete, right_buf, { force = true })
-        end
+        close_win_if_valid(right_win)
+        delete_buf_if_valid(right_buf)
+        cleanup_plugin_aux_buffers(left_buf)
 
         -- If there are more conflicts, reopen diff view; otherwise optionally quit.
         local lines = vim.api.nvim_buf_get_lines(left_buf, 0, -1, false)
         if buffer_looks_like_jj_conflict(lines) then
           -- Re-run using inferred marker length so we always match the buffer.
           jj_run(false, detect_jj_marker_length_from_buffer(lines), nil)
+          return
+        end
+
+        local current = vim.api.nvim_buf_get_name(left_buf)
+        local advanced = advance_to_next_conflicted_file_for_vcs("jj", current)
+        if advanced then
           return
         end
 
@@ -371,7 +509,7 @@ local function has_conflicts()
   return conflict_count > 0
 end
 
-local function detect_jj_marker_length_from_buffer(lines)
+detect_jj_marker_length_from_buffer = function(lines)
   -- jj conflict markers look like:
   --   <<<<<<< <description>
   --   %%%%%%% <description>
@@ -388,7 +526,7 @@ local function detect_jj_marker_length_from_buffer(lines)
   return nil
 end
 
-local function buffer_looks_like_jj_conflict(lines)
+buffer_looks_like_jj_conflict = function(lines)
   local has_top = false
   local has_diff = false
   local has_snapshot = false
@@ -479,18 +617,21 @@ local function diff_confl()
       group = advance_augroup,
       buffer = orig_buf,
       callback = function()
-        if vim.api.nvim_win_is_valid(right_win) then
-          pcall(vim.api.nvim_win_close, right_win, true)
-        end
-        if vim.api.nvim_buf_is_valid(right_buf) then
-          pcall(vim.api.nvim_buf_delete, right_buf, { force = true })
-        end
+        close_win_if_valid(right_win)
+        delete_buf_if_valid(right_buf)
+        cleanup_plugin_aux_buffers(orig_buf)
         if vim.api.nvim_win_is_valid(left_win) then
           pcall(vim.api.nvim_set_current_win, left_win)
         end
 
         if has_conflicts() then
           diff_confl()
+          return
+        end
+
+        local current = vim.api.nvim_buf_get_name(orig_buf)
+        local advanced = advance_to_next_conflicted_file_for_vcs("git", current)
+        if advanced then
           return
         end
 
