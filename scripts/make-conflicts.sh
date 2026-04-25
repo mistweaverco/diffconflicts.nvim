@@ -1,5 +1,44 @@
 #!/usr/bin/env bash
 
+ALLOWED_VALUES_GIT_OR_JJ=("git" "jj")
+ALLOWED_VALUES_CONFLICTING_FILES=("onefile" "twofiles")
+
+GIT_OR_JJ=${1:-"git"}
+CONFLICTING_FILES=${2:-"onefile"}
+
+if [[ ! " ${ALLOWED_VALUES_GIT_OR_JJ[*]} " =~ " ${GIT_OR_JJ} " ]]; then
+  echo "❌ Invalid value for GIT_OR_JJ: '$GIT_OR_JJ'. Allowed values are: ${ALLOWED_VALUES_GIT_OR_JJ[*]}"
+  exit 1
+fi
+
+if [[ ! " ${ALLOWED_VALUES_CONFLICTING_FILES[*]} " =~ " ${CONFLICTING_FILES} " ]]; then
+  echo "❌ Invalid value for CONFLICTING_FILES: '$CONFLICTING_FILES'. Allowed values are: ${ALLOWED_VALUES_CONFLICTING_FILES[*]}"
+  exit 1
+fi
+
+if [[ -d tmp/testrepo ]]; then
+  echo "🗑️ Removing existing test repository..."
+  rm -rf tmp/testrepo
+fi
+
+if [ "$GIT_OR_JJ" == "jj" ]; then
+  if ! command -v jj &> /dev/null; then
+    echo "❌ 'jj' command not found. Please install 'jj' to run this script with jj."
+    exit 1
+  else
+    echo "✅ 'jj' command found. Proceeding with jj setup."
+  fi
+fi
+if [ "$GIT_OR_JJ" == "git" ]; then
+  if ! command -v git &> /dev/null; then
+    echo "❌ 'git' command not found. Please install 'git' to run this script."
+    exit 1
+  else
+    echo "✅ 'git' command found. Proceeding with git setup."
+  fi
+fi
+
+echo "🚀 Setting up test repository with conflicting changes..."
 git init tmp/testrepo
 cd tmp/testrepo || exit 1
 
@@ -9,7 +48,21 @@ console.log('This is a test.');
 console.log('Goodbye, world!');
 EOF
 
-git add main.js
+if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
+  cat << EOF > main2.js
+console.log('Hello, world!');
+console.log('This is a test.');
+console.log('Goodbye, world!');
+EOF
+fi
+
+if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
+  git commit -m 'Initial Commit'
+fi
+if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
+  git add main.js main2.js
+fi
+
 git commit -m 'Commit One'
 
 git branch branchA
@@ -20,8 +73,22 @@ console.log('This is a test.');
 console.warn('Goodbye, world.');
 EOF
 
-git add main.js
-git commit -m 'Commit Two'
+if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
+  cat << EOF > main2.js
+console.log('Hello, everyone!');
+console.log('This is a test.');
+console.warn('Goodbye, world.');
+EOF
+fi
+
+if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
+  git commit -m 'Initial Commit'
+fi
+if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
+  git add main.js main2.js
+fi
+
+git commit -m 'Initial Commit'
 
 git checkout branchA
 
@@ -31,8 +98,29 @@ console.log('This is a test!!!');
 console.info('Farewell, world!');
 EOF
 
-git add main.js
+if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
+  cat << EOF > main2.js
+console.log('Hello, world!');
+console.log('This is a test!!!');
+console.info('Farewell, world!');
+EOF
+fi
+
+if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
+  git commit -m 'Initial Commit'
+fi
+if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
+  git add main.js main2.js
+fi
+
 git commit -m 'Commit Three'
 
 git checkout main
-git merge branchA
+
+if [ "$GIT_OR_JJ" == "jj" ]; then
+  jj git init --colocate
+  jj new main branchA
+fi
+if [ "$GIT_OR_JJ" == "git" ]; then
+  git merge branchA
+fi

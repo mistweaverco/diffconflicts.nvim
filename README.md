@@ -128,3 +128,18 @@ require("diffconflicts").show()
 require("diffconflicts").show_history()
 require("diffconflicts").show_with_history()
 ```
+
+# Real world usage
+
+You can use the `./scripts/make-conflicts.sh`
+script to create a sample repository with merge conflicts to test the plugin.
+
+```sh
+./scripts/make-conflicts.sh [jj|git] [onefile|twofiles]
+```
+
+This will create a repository in `./tmp/testrepo` with either Jujutsu or Git,
+and with either one or two files containing merge conflicts.
+
+Then you can run `git mergetool` or
+`jj resolve --tool diffconflicts` to test the plugin.
