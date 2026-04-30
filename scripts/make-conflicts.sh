@@ -42,14 +42,20 @@ echo "🚀 Setting up test repository with conflicting changes..."
 git init tmp/testrepo
 cd tmp/testrepo || exit 1
 
-cat << EOF > main.js
-console.log('Hello, world!');
-console.log('This is a test.');
-console.log('Goodbye, world!');
+cat << EOF > poem.txt
+twas bri1lig, and the slithy toves
+did gyre and gimble in the wabe
+all mimsy were the borogroves
+and the m0me raths outgabe.
+
+"Beware the Jabberwock, my son!
+The jaws that bite, the claws that catch!
+Beware the Jub jub bird, and shun
+The frumious bandersnatch!"
 EOF
 
 if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  cat << EOF > main2.js
+  cat << EOF > main.js
 console.log('Hello, world!');
 console.log('This is a test.');
 console.log('Goodbye, world!');
@@ -57,24 +63,30 @@ EOF
 fi
 
 if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
-  git commit -m 'Initial Commit'
+  git add poem.txt
 fi
 if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  git add main.js main2.js
+  git add poem.txt main.js
 fi
 
 git commit -m 'Commit One'
 
 git branch branchA
 
-cat << EOF > main.js
-console.log('Hello, everyone!');
-console.log('This is a test.');
-console.warn('Goodbye, world.');
+cat << EOF > poem.txt
+twas brillig, and the slithy toves
+Did gyre and gimble in the wabe:
+all mimsy were the borogoves,
+And the mome raths outgrabe.
+
+"Beware the Jabberwock, my son!
+The jaws that bite, the claws that catch!
+Beware the Jubjub bird, and shun
+The frumious Bandersnatch!"
 EOF
 
 if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  cat << EOF > main2.js
+  cat << EOF > main.js
 console.log('Hello, everyone!');
 console.log('This is a test.');
 console.warn('Goodbye, world.');
@@ -82,24 +94,30 @@ EOF
 fi
 
 if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
-  git commit -m 'Initial Commit'
+  git add poem.txt
 fi
 if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  git add main.js main2.js
+  git add poem.txt main.js
 fi
 
 git commit -m 'Initial Commit'
 
 git checkout branchA
 
-cat << EOF > main.js
-console.log('Hello, world!');
-console.log('This is a test!!!');
-console.info('Farewell, world!');
+cat << EOF > poem.txt
+'Twas brillig, and the slithy toves
+Did gyre and gimble in the wabe:
+All mimsy were the borogroves
+And the mome raths outgabe.
+
+"Beware the Jabberwock, my son!
+The jaws that bite, the claws that catch!
+Beware the Jub jub bird, and shun
+The frumious bandersnatch!"
 EOF
 
 if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  cat << EOF > main2.js
+  cat << EOF > main.js
 console.log('Hello, world!');
 console.log('This is a test!!!');
 console.info('Farewell, world!');
@@ -110,7 +128,7 @@ if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
   git commit -m 'Initial Commit'
 fi
 if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  git add main.js main2.js
+  git add poem.txt main.js
 fi
 
 git commit -m 'Commit Three'
