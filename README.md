@@ -30,8 +30,9 @@ Make resolving merge conflicts in Neovim a breeze.
 > [Nathaniel Whiteinge](https://www.eseth.org/).
 >
 > Even though the plugin has since evolved,
-> we track the 
-> [this](https://github.com/mistweaverco/diffconflicts.nvim/issues/6) issue.
+> we'll keep track of 
+> [this](https://github.com/mistweaverco/diffconflicts.nvim/issues/6) issue
+> and give credit where it's due.
 >
 > Thus we might change the LICENSE in the future,
 > so please check the LICENSE file before using or contributing.
