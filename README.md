@@ -37,6 +37,8 @@ the next conflicting file.
 
 <summary>Origins of this plugin</summary>
 
+---
+
 This started as "just a port from vimscript to lua."
 
 The OG plugin is
@@ -62,6 +64,8 @@ original plugin and inspiring this one.
 
 <summary>Requirements for this plugin</summary>
 
+---
+
 - Neovim 0.10+
 - Git 2.25+ (for `git mergetool` support)
 - Jujutsu v0.18+ (optional, for `jj resolve` support)
@@ -73,6 +77,8 @@ original plugin and inspiring this one.
 <details>
 
 <summary>Installation example for this plugin</summary>
+
+---
 
 Use your favorite plugin manager to install `diffconflicts.nvim`.
 
@@ -119,6 +125,8 @@ Configuration is required to use this plugin as a merge tool with Git or Jujutsu
 
 <summary>Configure with Git</summary>
 
+---
+
 Configure Git to use this plugin as a merge-tool:
 
 ```sh
@@ -144,6 +152,8 @@ git config --global mergetool.keepBackup false
 <details>
 
 <summary>Configure with Jujutsu</summary>
+
+---
 
 Configure Jujutsu to use this plugin as a merge tool
 (requires the default `"diff"` conflict marker style):
