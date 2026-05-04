@@ -22,6 +22,15 @@ Make resolving merge conflicts in Neovim a breeze.
 
 </div>
 
+## Screenshots
+
+![diffconflicts screenshot](assets/screenshot.png)
+
+All you need to do is edit the left side to resolve the conflicts.
+
+By default, saving the file (`:w`) will automatically advance to
+the next conflicting file.
+
 ## Origins
 
 <details>
@@ -193,7 +202,14 @@ the right side shows the differences between the branches.
 
 So all you need to do is edit the left side to resolve the conflicts.
 
-By default, saving the file (`:w`) will automatically advance to the next conflict in the file, and if there are no conflicts left it will quit Neovim (so your merge tool can continue). You can customize this behavior via `qol.advance_on_save` and `qol.quit_on_done`.
+By default, saving the file (`:w`) will automatically advance to
+the next conflicting file.
+
+If there are no conflicts left it'll
+quit Neovim (so your merge tool can continue).
+
+You can customize this behavior via
+`qol.advance_on_save` and `qol.quit_on_done`.
 
 To abort the merge, simply `:cquit`.
 
