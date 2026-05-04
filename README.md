@@ -26,12 +26,12 @@ Make resolving merge conflicts in Neovim a breeze.
 
 <summary>Origins of this plugin</summary>
 
-> [!INFO]
-> This started as "just a port from vimscript to lua."
-> The OG plugin is
-> [vim-diffconflicts](https://github.com/whiteinge/diffconflicts)
-> and it's author is
-> [Nathaniel Whiteinge](https://www.eseth.org/).
+This started as "just a port from vimscript to lua."
+
+The OG plugin is
+[vim-diffconflicts](https://github.com/whiteinge/diffconflicts)
+and it's author is
+[Nathaniel Whiteinge](https://www.eseth.org/).
 
 It has since evolved into more of a rewrite and some new features.
 
