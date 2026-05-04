@@ -22,20 +22,28 @@ Make resolving merge conflicts in Neovim a breeze.
 
 </div>
 
-> [!WARNING]
+<details>
+
+<summary>Origins of this plugin</summary>
+
+> [!INFO]
 > This started as "just a port from vimscript to lua."
 > The OG plugin is
 > [vim-diffconflicts](https://github.com/whiteinge/diffconflicts)
 > and it's author is
 > [Nathaniel Whiteinge](https://www.eseth.org/).
->
-> Even though the plugin has since evolved,
-> we'll keep track of 
-> [this](https://github.com/mistweaverco/diffconflicts.nvim/issues/6) issue
-> and give credit where it's due.
->
-> Thus we might change the LICENSE in the future,
-> so please check the LICENSE file before using or contributing.
+
+It has since evolved into more of a rewrite and some new features.
+
+The core idea of providing a two-way-diff view for
+resolving merge conflicts remains the same.
+
+Two-way-diffs are arguably the best way to resolve merge conflicts.
+
+I'm forever grateful to Nathaniel for creating the
+original plugin and inspiring this one.
+
+</details>
 
 ## Requirements
 
