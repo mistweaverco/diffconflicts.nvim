@@ -22,6 +22,8 @@ Make resolving merge conflicts in Neovim a breeze.
 
 </div>
 
+## Origins
+
 <details>
 
 <summary>Origins of this plugin</summary>
@@ -47,11 +49,21 @@ original plugin and inspiring this one.
 
 ## Requirements
 
+<details>
+
+<summary>Requirements for this plugin</summary>
+
 - Neovim 0.10+
 - Git 2.25+ (for `git mergetool` support)
 - Jujutsu v0.18+ (optional, for `jj resolve` support)
 
+</details>
+
 ## Installation
+
+<details>
+
+<summary>Installation example for this plugin</summary>
 
 Use your favorite plugin manager to install `diffconflicts.nvim`.
 
@@ -86,6 +98,18 @@ For example, with [Lazy](https://github.com/folke/lazy.nvim):
 }
 ```
 
+</details>
+
+## Configure
+
+Configuration is required to use this plugin as a merge tool with Git or Jujutsu.
+
+### Configure with Git
+
+<details>
+
+<summary>Configure with Git</summary>
+
 Configure Git to use this plugin as a merge-tool:
 
 ```sh
@@ -103,6 +127,14 @@ git config --global mergetool.diffconflicts.cmd 'nvim -c DiffConflictsWithHistor
 git config --global mergetool.diffconflicts.trustExitCode true
 git config --global mergetool.keepBackup false
 ```
+
+</details>
+
+### Configure with Jujutsu
+
+<details>
+
+<summary>Configure with Jujutsu</summary>
 
 Configure Jujutsu to use this plugin as a merge tool
 (requires the default `"diff"` conflict marker style):
@@ -128,6 +160,8 @@ merge-args = [
 ]
 merge-tool-edits-conflict-markers = true
 ```
+
+</details>
 
 ## Usage
 
@@ -178,12 +212,24 @@ require("diffconflicts").show_with_history()
 You can use the `./scripts/make-conflicts.sh`
 script to create a sample repository with merge conflicts to test the plugin.
 
+## Usage with Git
+
 ```sh
-./scripts/make-conflicts.sh [jj|git] [onefile|twofiles]
+./scripts/make-conflicts.sh git twofiles
 ```
 
-This will create a repository in `./tmp/testrepo` with either Jujutsu or Git,
-and with either one or two files containing merge conflicts.
+## Usage with Jujutsu
+
+```sh
+./scripts/make-conflicts.sh jj twofiles
+```
+
+This will create a repository in `./tmp/testrepo`,
+with two files containing merge conflicts.
+
+```sh
+cd ./tmp/testrepo
+```
 
 Then you can run `git mergetool` or
 `jj resolve --tool diffconflicts` to test the plugin.
