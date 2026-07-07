@@ -11,6 +11,11 @@ local config = {
     advance_on_save = true,
     quit_on_done = true,
   },
+  keymaps = {
+    next_diff = "]g",
+    prev_diff = "[g",
+    accept = nil,
+  },
 }
 
 local advance_augroup = vim.api.nvim_create_augroup("diffconflicts.nvim.advance", { clear = false })
@@ -19,6 +24,7 @@ local advance_augroup = vim.api.nvim_create_augroup("diffconflicts.nvim.advance"
 local detect_jj_marker_length_from_buffer
 local buffer_looks_like_jj_conflict
 local jj_run
+local setup_diff_session
 
 local function close_win_if_valid(winid)
   if winid and vim.api.nvim_win_is_valid(winid) then
@@ -380,6 +386,7 @@ local function jj_setup_diff_splits(conflicts)
 
   vim.cmd.diffupdate()
   vim.fn.cursor(conflicts[1].top_line, 1)
+  setup_diff_session(left_buf, right_buf, left_win, right_win)
 
   -- QoL: save-to-advance (and optionally quit when done).
   if config.qol and config.qol.advance_on_save then
@@ -560,6 +567,98 @@ buffer_looks_like_jj_conflict = function(lines)
   return has_top and has_bottom and (has_diff or has_snapshot)
 end
 
+local function get_diff_session(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local session = vim.b[bufnr].diffconflicts_session
+  local role = vim.b[bufnr].diffconflicts_role
+  if not session or not role then
+    return nil, nil
+  end
+  if not vim.api.nvim_buf_is_valid(session.left_buf) or not vim.api.nvim_buf_is_valid(session.right_buf) then
+    return nil, nil
+  end
+  return session, role
+end
+
+function M.next_diff()
+  local session = get_diff_session()
+  if not session then
+    vim.notify("diffconflicts.nvim: not in a diff conflicts session", vim.log.levels.WARN)
+    return
+  end
+  local before = vim.fn.line(".")
+  vim.cmd.normal({ args = { "]c" }, bang = true })
+  if vim.fn.line(".") == before then
+    vim.notify("diffconflicts.nvim: no next diff", vim.log.levels.INFO)
+  end
+end
+
+function M.prev_diff()
+  local session = get_diff_session()
+  if not session then
+    vim.notify("diffconflicts.nvim: not in a diff conflicts session", vim.log.levels.WARN)
+    return
+  end
+  local before = vim.fn.line(".")
+  vim.cmd.normal({ args = { "[c" }, bang = true })
+  if vim.fn.line(".") == before then
+    vim.notify("diffconflicts.nvim: no previous diff", vim.log.levels.INFO)
+  end
+end
+
+function M.accept()
+  local session, role = get_diff_session()
+  if not session then
+    vim.notify("diffconflicts.nvim: not in a diff conflicts session", vim.log.levels.WARN)
+    return
+  end
+  if role == "left" then
+    vim.cmd.diffget()
+  else
+    vim.cmd.diffput()
+  end
+end
+
+local function register_diff_keymaps(left_buf, right_buf)
+  if config.keymaps == false then
+    return
+  end
+
+  local keymaps = config.keymaps or {}
+
+  local function set_map(buf, key, fn, desc)
+    if key and key ~= false then
+      vim.keymap.set("n", key, fn, { buffer = buf, desc = desc, silent = true })
+    end
+  end
+
+  for _, buf in ipairs({ left_buf, right_buf }) do
+    if keymaps.next_diff ~= nil and keymaps.next_diff ~= false then
+      set_map(buf, keymaps.next_diff, M.next_diff, "Next diff hunk")
+    end
+    if keymaps.prev_diff ~= nil and keymaps.prev_diff ~= false then
+      set_map(buf, keymaps.prev_diff, M.prev_diff, "Previous diff hunk")
+    end
+    if keymaps.accept ~= nil and keymaps.accept ~= false then
+      set_map(buf, keymaps.accept, M.accept, "Accept diff hunk from right")
+    end
+  end
+end
+
+setup_diff_session = function(left_buf, right_buf, left_win, right_win)
+  local session = {
+    left_buf = left_buf,
+    right_buf = right_buf,
+    left_win = left_win,
+    right_win = right_win,
+  }
+  vim.b[left_buf].diffconflicts_session = session
+  vim.b[left_buf].diffconflicts_role = "left"
+  vim.b[right_buf].diffconflicts_session = session
+  vim.b[right_buf].diffconflicts_role = "right"
+  register_diff_keymaps(left_buf, right_buf)
+end
+
 local function diff_confl()
   if effective_vcs() == "jj" then
     jj_run(false, nil, nil)
@@ -620,6 +719,7 @@ local function diff_confl()
   vim.cmd("silent! g/^<<<<<<< /d")
 
   vim.cmd("diffupdate")
+  setup_diff_session(orig_buf, right_buf, left_win, right_win)
 
   -- QoL: save-to-advance (and optionally quit when done).
   if config.qol and config.qol.advance_on_save then
@@ -1167,6 +1267,10 @@ end
 ---@field commands.show_history string|nil Name for the show history command.
 ---@field commands.with_history string|nil Name for the command to show history and diff conflicts.
 ---@field commands.jj_diff_conflicts string|nil Name for the Jujutsu diff conflicts command.
+---@field keymaps table|boolean|nil Keymaps for diff navigation and accept actions.
+---@field keymaps.next_diff string|boolean|nil Keymap for next diff hunk (default: "]g").
+---@field keymaps.prev_diff string|boolean|nil Keymap for previous diff hunk (default: "[g").
+---@field keymaps.accept string|boolean|nil Keymap to accept the right-pane change into the left pane.
 
 ---Sets up the plugin with user configuration.
 ---@param opts DiffConflictsConfig|nil Configuration options.
