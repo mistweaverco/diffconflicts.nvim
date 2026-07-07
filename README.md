@@ -109,15 +109,40 @@ For example, with [Lazy](https://github.com/folke/lazy.nvim):
       -- when running from `git mergetool` / `jj resolve`.
       quit_on_done = true,
     },
+    -- Keymaps for diff navigation and accepting changes
+    keymaps = {
+      -- Jump to the next/previous diff hunk in either pane
+      -- No default; set a key to enable (e.g. "]g" and "[g").
+      next_diff = nil,
+      prev_diff = nil,
+      -- Pull the change at the cursor from the right pane into the left pane.
+      -- No default; set a key to enable (e.g. "<leader>da").
+      accept = nil,
+    },
   }
 }
 ```
+
+Set `keymaps = false` to disable all plugin keymaps while
+keeping the API available.
+
+You can also map the public API yourself:
+
+```lua
+local diffconflicts = require("diffconflicts")
+
+vim.keymap.set("n", "<leader>da", diffconflicts.accept, { desc = "Accept diff hunk" })
+```
+
+Built-in Vim diff mappings (`do`/`dp`, `]c`/`[c`) also work while in diff mode,
+but aren't registered by this plugin.
 
 </details>
 
 ## Configure
 
-Configuration is required to use this plugin as a merge tool with Git or Jujutsu.
+Configuration is required to use this plugin as a
+merge tool with Git or Jujutsu.
 
 ### Configure with Git
 
@@ -196,7 +221,9 @@ Or for Jujutsu:
 jj resolve --tool diffconflicts
 ```
 
-This will open the conflicting file in Neovim with the `diffconflicts.nvim` plugin enabled.
+This will open the conflicting file in Neovim with the
+`diffconflicts.nvim` plugin enabled.
+
 You can also manually open a file and then run the command:
 
 ```vim
