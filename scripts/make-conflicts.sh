@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
 
 ALLOWED_VALUES_GIT_OR_JJ=("git" "jj")
-ALLOWED_VALUES_CONFLICTING_FILES=("onefile" "twofiles")
 
 GIT_OR_JJ=${1:-"git"}
-CONFLICTING_FILES=${2:-"onefile"}
 
 if [[ ! " ${ALLOWED_VALUES_GIT_OR_JJ[*]} " =~ " ${GIT_OR_JJ} " ]]; then
   echo "❌ Invalid value for GIT_OR_JJ: '$GIT_OR_JJ'. Allowed values are: ${ALLOWED_VALUES_GIT_OR_JJ[*]}"
-  exit 1
-fi
-
-if [[ ! " ${ALLOWED_VALUES_CONFLICTING_FILES[*]} " =~ " ${CONFLICTING_FILES} " ]]; then
-  echo "❌ Invalid value for CONFLICTING_FILES: '$CONFLICTING_FILES'. Allowed values are: ${ALLOWED_VALUES_CONFLICTING_FILES[*]}"
   exit 1
 fi
 
@@ -54,20 +47,19 @@ Beware the Jub jub bird, and shun
 The frumious bandersnatch!"
 EOF
 
-if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
   cat << EOF > main.js
 console.log('Hello, world!');
 console.log('This is a test.');
 console.log('Goodbye, world!');
-EOF
-fi
 
-if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
-  git add poem.txt
-fi
-if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  git add poem.txt main.js
-fi
+const boot = () => {
+  console.log('Booting...');
+};
+
+boot();
+EOF
+
+git add poem.txt main.js
 
 git commit -m 'Commit One'
 
@@ -85,20 +77,19 @@ Beware the Jubjub bird, and shun
 The frumious Bandersnatch!"
 EOF
 
-if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
   cat << EOF > main.js
-console.log('Hello, everyone!');
-console.log('This is a test.');
-console.warn('Goodbye, world.');
-EOF
-fi
+const logger = (message) => {
+  console.log(message);
+};
 
-if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
-  git add poem.txt
-fi
-if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  git add poem.txt main.js
-fi
+const boot = (port) => {
+  console.log('Booting on port', port);
+};
+
+boot(process.env.PORT || 3000);
+EOF
+
+git add poem.txt main.js
 
 git commit -m 'Initial Commit'
 
@@ -116,20 +107,25 @@ Beware the Jub jub bird, and shun
 The frumious bandersnatch!"
 EOF
 
-if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
   cat << EOF > main.js
-console.log('Hello, world!');
-console.log('This is a test!!!');
-console.info('Farewell, world!');
-EOF
-fi
+const logger = (level, message) => {
+  if (level === 'info') {
+    console.log('INFO:', message);
+  } else if (level === 'error') {
+    console.error('ERROR:', message);
+  } else {
+    console.log(message);
+  }
+};
 
-if [[ "$CONFLICTING_FILES" == "onefile" ]]; then
-  git commit -m 'Initial Commit'
-fi
-if [[ "$CONFLICTING_FILES" == "twofiles" ]]; then
-  git add poem.txt main.js
-fi
+const boot = (port) => {
+  console.log('Booting on port', port);
+};
+
+boot(process.env.PORT || 3000);
+EOF
+
+git add poem.txt main.js
 
 git commit -m 'Commit Three'
 
