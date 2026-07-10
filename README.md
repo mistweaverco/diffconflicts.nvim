@@ -207,6 +207,42 @@ merge-tool-edits-conflict-markers = true
 
 </details>
 
+## Theming
+
+diffconflicts.nvim uses Neovim's built-in diff mode (`:diffthis`) and
+doesn't define its own highlight groups.
+Appearance is controlled entirely by your
+colorscheme via the standard Vim diff highlight groups:
+
+
+| Group | Highlights |
+|-------|------------|
+| `DiffAdd` | Entire added lines |
+| `DiffDelete` | Entire deleted lines |
+| `DiffChange` | Unchanged portions of modified lines |
+| `DiffText` | Changed characters within a modified line |
+| `DiffTextAdd` | Added characters within a line (Neovim 0.10+) |
+
+
+For best results,
+use a colorscheme that gives each group a distinct tinted
+background.
+
+So line-level changes (add/change/delete) are easy to scan, with
+character-level changes (`DiffText`) using a contrasting hue.
+
+[vhs-era-theme.nvim](https://github.com/mistweaverco/vhs-era-theme.nvim) defines
+these groups with vivid tinted backgrounds out of the box.
+
+To override diff colors manually, add this to your config:
+
+```lua
+vim.api.nvim_set_hl(0, "DiffAdd",    { bg = "#419f5c", fg = "#42be65" })
+vim.api.nvim_set_hl(0, "DiffChange", { bg = "#d9ad52", fg = "#f2f4f8" })
+vim.api.nvim_set_hl(0, "DiffDelete", { bg = "#dd3c82", fg = "#ee5396" })
+vim.api.nvim_set_hl(0, "DiffText",   { bg = "#6a9cff", fg = "#f2f4f8", bold = true })
+```
+
 ## Usage
 
 To resolve merge conflicts, run:
